@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0-macos15.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RuntimeIdentifier>osx-arm64</RuntimeIdentifier>
+    <SupportedOSPlatformVersion>13.0</SupportedOSPlatformVersion>
+    <EnablePackageValidation>false</EnablePackageValidation>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Seam contracts (ISecretProtector, INoteImageService, ICloudSyncNotifier, AppContainer). -->
+    <ProjectReference Include="..\SideDesk.Core\SideDesk.Core.csproj" />
+  </ItemGroup>
+</Project>

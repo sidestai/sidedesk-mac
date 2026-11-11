@@ -1,0 +1,295 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Newtonsoft.Json;
+
+namespace SideDesk.Models;
+
+/// <summary>
+/// 数据看板条目
+/// </summary>
+public class DataDashboardItem
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string Label { get; set; } = "";          // 数据项文字（显示标签）
+    public string Value { get; set; } = "--";        // 当前抓取到的值
+    public string TemplateId { get; set; } = "";     // 关联模板ID（空=自定义）
+    // 自定义配置（模板为空时使用，或覆盖模板默认值）
+    public string? BrowserId { get; set; }           // 选择的浏览器ID（null=默认第一个）
+    public string? ProfileId { get; set; }           // 选择的Profile ID
+    public string TargetUrl { get; set; } = "";      // 目标网址（API 模式时为请求 URL）
+    public string Selector { get; set; } = "";       // XPath 或 CSS Selector
+    public string SelectorType { get; set; } = "";   // 选择器类型：xpath/css/regex/js（空=旧版自动识别）
+    public int RefreshIntervalSeconds { get; set; } = 60; // 刷新间隔（秒）
+
+    // API 请求模式（无模板自定义）：ApiMethod 非空时直接 HTTP 取数，不经浏览器
+    public string? ApiMethod { get; set; }           // GET / POST（null/空 = 浏览器+选择器模式）
+    public string? ApiBody { get; set; }             // POST 请求内容
+    public string? ResponseExtract { get; set; }     // response 提取：JSON 路径（如 data.count）；留空=整个响应
+    public string? ApiExtractType { get; set; }      // response 提取类型：json（JSON 路径，默认/空兼容老数据）/ regex（正则首匹配）
+
+    // 正则后过滤（与插件侧语义一致）：原始值取回后先做正则提取，再按格式串组合
+    public string? ExtractRegex { get; set; }        // 正则提取规则：取首个匹配；空=不过滤
+    public string? ExtractFormat { get; set; }       // 格式串：{0} 整匹配，{1}..{n} 捕获组；空等同 {0}；未匹配=空串
+
+    /// <summary>
+    /// 对原始值应用正则后过滤（与插件侧语义一致）：无正则/正则非法返回原文；未匹配返回空串
+    /// </summary>
+    public static string ApplyValueExtract(string raw, string? regex, string? format)
+    {
+        if (string.IsNullOrEmpty(regex)) return raw;
+        System.Text.RegularExpressions.Match m;
+        try { m = System.Text.RegularExpressions.Regex.Match(raw ?? string.Empty, regex); }
+        catch { return raw; }
+        if (!m.Success) return string.Empty;
+        var fmt = string.IsNullOrEmpty(format) ? "{0}" : format!;
+        return System.Text.RegularExpressions.Regex.Replace(fmt, @"\{(\d+)\}", mm =>
+        {
+            var i = int.Parse(mm.Groups[1].Value);
+            var g = i < m.Groups.Count ? m.Groups[i] : null;
+            return g == null || !g.Success ? string.Empty : g.Value;
+        });
+    }
+
+    // 团队归属与变量
+    public string? TeamId { get; set; }              // 所属团队ID（null/空=个人）
+    public string? TeamName { get; set; }            // 团队名称快照（显示用）
+    public string? VarKey { get; set; }              // 变量名（如 qcoder.count，团队/个人内唯一，供其他地方条件判断/显示引用）
+    public string? DashboardGroupId { get; set; }     // 所属数据看板分组ID：同批创建的多个数据点共享，自动开窗时同组共用一个 --new-window 窗口（多 URL = 多 tab）；null/空=独立项，各自开窗
+
+    // 引用展示（非空=仅展示同变量名运行中数据项的值，自身不参与轮询）
+    public string? RefVarKey { get; set; }           // 引用的变量名（指向实际轮询的数据项）
+
+    // 样式配置
+    public string LabelColor { get; set; } = "";         // 标题文字颜色（空=默认）
+    public double LabelFontSize { get; set; } = 0;       // 标题字号（0=默认11）
+    public bool LabelBold { get; set; } = false;          // 标题是否粗体
+    public string ValueColor { get; set; } = "";         // 数据字体颜色（空=默认）
+    public double ValueFontSize { get; set; } = 0;       // 数据字号（0=默认16）
+    public bool ValueBold { get; set; } = false;          // 数据是否粗体
+    public string HorizontalAlignment { get; set; } = ""; // 水平对齐：Left/Center/Right（空=默认Left）
+    public string? ValueFormat { get; set; }          // 值格式（可选）：{0} 或「变量」代表值，如 "你好：{0}"；留空=直接显示值
+}
+
+/// <summary>
+/// 变量集：将多个运行中的变量（显式勾选 + 通配符匹配）按求和/求平均/最大/最小/计数聚合成一个新变量。
+/// 变量集名即变量名（如 qoder.count_all），可像普通变量一样被条件判断/显示引用。
+/// </summary>
+public class VariableSet
+{
+    public string VarKey { get; set; } = "";               // 变量集名（作用域内唯一，如 qoder.count_all）
+    public string Op { get; set; } = "SUM";                // 聚合逻辑：SUM 求和 / AVG 求平均 / MAX 最大 / MIN 最小 / COUNT 计数
+    public List<string> SourceKeys { get; set; } = new();  // 显式选择的变量名列表
+    public string Pattern { get; set; } = "";              // 通配符（如 qoder.count*，* 匹配任意字符）；空=不启用通配
+    public string? TeamId { get; set; }                    // 团队ID加密串（空=个人作用域）
+    public string? TeamName { get; set; }                  // 团队显示名（仅本地展示用，不参与同步）
+}
+
+/// <summary>
+/// 模板数据点（一条选择器条目；模板支持多数据点位，语义与 Chrome 插件条目对齐）
+/// </summary>
+public class TemplateSelector
+{
+    public string VarKey { get; set; } = "";          // 变量名（可选，作用域内唯一，供格式/条件引用）
+    public string TargetUrl { get; set; } = "";       // 目标网址（空=复用模板级 TargetUrl）
+    public string Selector { get; set; } = "";        // XPath 或 CSS Selector 等
+    public string SelectorType { get; set; } = "";    // 选择器类型：xpath/css/regex/js
+    public int RefreshIntervalSeconds { get; set; } = 60;
+    public string? ExtractRegex { get; set; }         // 正则后过滤（与插件侧语义一致）；空=不过滤
+    public string? ExtractFormat { get; set; }        // 格式串：{0} 整匹配，{1}..{n} 捕获组；空等同 {0}
+}
+
+/// <summary>
+/// 数据模板定义（预定义或用户自建）
+/// </summary>
+public class DataTemplate
+{
+    public string Id { get; set; } = "";
+    public string Name { get; set; } = "";           // 模板名称
+    public string Description { get; set; } = "";    // 描述
+    public string Category { get; set; } = "";       // 分类（如"社交媒体","开发者"）
+    public string TargetUrl { get; set; } = "";      // 目标网址（可含占位符如 {owner}；数据点位级 URL 的兜底）
+    public string Selector { get; set; } = "";       // XPath 或 CSS Selector（旧版单点位字段，新版为首点位镜像）
+    public string SelectorType { get; set; } = "";   // 选择器类型：xpath/css/regex/js（空=旧版自动识别）
+    public int RefreshIntervalSeconds { get; set; } = 60;
+    public string? DefaultBrowserId { get; set; }    // 可选默认浏览器
+    public string? DefaultProfileId { get; set; }     // 可选默认Profile
+    public string? TeamId { get; set; }              // 所属团队ID（null=个人）
+    public string? TeamName { get; set; }              // 团队名称快照（显示用）
+    public string? Source { get; set; }              // 来源标记："market"=从市场下载落地；空/null=本地自建（团队归属另看 TeamId）
+    public bool MarketPublished { get; set; }        // 是否已上传到公共市场（设置页按钮切换为「更新到市场」）
+    
+    // 看板显示内容格式（模板级样式，与数据项样式字段同名；空/0/false=默认，实例化时套用到每个数据项）
+    public string? ValueFormat { get; set; }          // 值格式：{0} 或 {变量名} 代表值；留空=直接显示值
+    public string LabelColor { get; set; } = "";      // 标题文字颜色（#RRGGBB，空=默认）
+    public double LabelFontSize { get; set; } = 0;    // 标题字号（0=默认）
+    public bool LabelBold { get; set; } = false;      // 标题粗体
+    public string ValueColor { get; set; } = "";      // 数据文字颜色（#RRGGBB，空=默认）
+    public double ValueFontSize { get; set; } = 0;    // 数据字号（0=默认）
+    public bool ValueBold { get; set; } = false;      // 数据粗体
+    public string HorizontalAlignment { get; set; } = ""; // 水平对齐：Left/Center/Right（空=默认 Left）
+
+    /// <summary>多数据点位（空=旧版单点位模板，回退 TargetUrl/Selector 等旧字段）</summary>
+    public List<TemplateSelector> Selectors { get; set; } = new();
+
+    /// <summary>是否市场下载来源：新数据带 Source 标记；旧数据回退认 market- 前缀 ID（市场桥落地时生成）</summary>
+    [JsonIgnore]
+    public bool IsMarketSourced =>
+        string.Equals(Source, "market", StringComparison.OrdinalIgnoreCase)
+        || (Id ?? "").StartsWith("market-", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>列表展示用方括号标签：市场下载统一显示「市场」（其 Category 是发布者市场分类如"开发者"，在本地列表易被误读为来源）；其余显示自建分类</summary>
+    [JsonIgnore]
+    public string DisplayTag => IsMarketSourced ? Framework.Lang.T("common.market") : Category;
+
+    /// <summary>生效数据点位：Selectors 优先；空时用旧版单点位字段兜底一条（兼容旧模板/内置/市场/团队模板）</summary>
+    [JsonIgnore]
+    public IReadOnlyList<TemplateSelector> EffectiveSelectors =>
+        Selectors != null && Selectors.Count > 0
+            ? Selectors
+            : new List<TemplateSelector>
+            {
+                new TemplateSelector
+                {
+                    TargetUrl = TargetUrl,
+                    Selector = Selector,
+                    SelectorType = SelectorType,
+                    RefreshIntervalSeconds = RefreshIntervalSeconds
+                }
+            };
+}
+
+/// <summary>
+/// 数据模板管理器 - 从 data-templates/ 目录加载模板
+/// </summary>
+public class DataTemplateManager
+{
+    // 内置模板目录：随版本部署在 exe 目录（只读，升级会重置，不放用户可写数据）
+    private static readonly string TemplateDir = Path.Combine(
+        AppDomain.CurrentDomain.BaseDirectory, "data-templates");
+
+    // 用户可写数据目录（macOS: ~/Library/Application Support/SideDesk；与 db / 配置同目录，稳定不随版本更新丢失）
+    private static readonly string UserDataDir = Framework.AppPaths.DataDir;
+
+    // 用户自建模板文件（AppData）
+    private static readonly string UserTemplatesFile = Path.Combine(UserDataDir, "user-templates.json");
+
+    /// <summary>用户自建模板文件路径（供删除逻辑与云同步引用，避免各处硬编码）</summary>
+    public static string UserTemplatesFilePath => UserTemplatesFile;
+
+    // 内置模板删除黑名单：内置文件随版本部署恢复，删除记录持久化到 AppData（不再随升级丢失）
+    private static readonly string DeletedBuiltinsFile = Path.Combine(UserDataDir, "deleted-builtins.json");
+
+    public List<DataTemplate> Templates { get; set; } = new();
+
+    private static List<string> LoadDeletedIds()
+    {
+        try
+        {
+            if (File.Exists(DeletedBuiltinsFile))
+                return JsonConvert.DeserializeObject<List<string>>(File.ReadAllText(DeletedBuiltinsFile)) ?? new();
+        }
+        catch { }
+        return new();
+    }
+
+    /// <summary>记录删除（对内置模板生效；用户模板直接改 user-templates.json，同时入黑名单无害）</summary>
+    public static void MarkDeleted(string templateId)
+    {
+        var ids = LoadDeletedIds();
+        if (ids.Contains(templateId)) return;
+        ids.Add(templateId);
+        Directory.CreateDirectory(UserDataDir);
+        File.WriteAllText(DeletedBuiltinsFile, JsonConvert.SerializeObject(ids, Formatting.Indented));
+    }
+
+    /// <summary>
+    /// 加载模板：内置模板（exe\data-templates\，随版本部署，只读）+ 用户自建模板（AppData，可写、升级不丢）
+    /// </summary>
+    public static DataTemplateManager Load()
+    {
+        var manager = new DataTemplateManager();
+        
+        // 1) 内置模板：遍历 exe\data-templates\ 下随版本部署的 *.json（只读）
+        if (Directory.Exists(TemplateDir))
+        {
+            foreach (var file in Directory.GetFiles(TemplateDir, "*.json"))
+            {
+                try
+                {
+                    var json = File.ReadAllText(file);
+                    var templates = JsonConvert.DeserializeObject<List<DataTemplate>>(json);
+                    if (templates != null)
+                        manager.Templates.AddRange(templates);
+                }
+                catch (Exception ex)
+                {
+                    Framework.RuntimeLog.Debug($"[DataTemplate] failed to load template file {file}: {ex.Message}");
+                }
+            }
+        }
+
+        // 2) 用户自建模板：从 AppData 加载（不再随版本更新被清空）
+        manager.Templates.AddRange(LoadUserTemplates());
+
+        // 3) 过滤已删除的内置模板（deleted-builtins.json 不是模板列表，反序列化会失败被跳过，不影响）
+        var deleted = LoadDeletedIds();
+        if (deleted.Count > 0)
+            manager.Templates.RemoveAll(t => deleted.Contains(t.Id));
+
+        return manager;
+    }
+
+    /// <summary>
+    /// 仅加载用户自建模板（AppData\user-templates.json），不含内置模板
+    /// </summary>
+    public static List<DataTemplate> LoadUserTemplates()
+    {
+        if (!File.Exists(UserTemplatesFile)) return new();
+        try { return JsonConvert.DeserializeObject<List<DataTemplate>>(File.ReadAllText(UserTemplatesFile)) ?? new(); }
+        catch { return new(); }
+    }
+
+    /// <summary>
+    /// 保存用户自建模板到 AppData\user-templates.json
+    /// </summary>
+    public void SaveUserTemplate(DataTemplate template)
+    {
+        Directory.CreateDirectory(UserDataDir);
+        List<DataTemplate> userTemplates = new();
+
+        // 重新保存视为恢复：从删除黑名单中移除
+        var deleted = LoadDeletedIds();
+        if (deleted.Remove(template.Id))
+            File.WriteAllText(DeletedBuiltinsFile, JsonConvert.SerializeObject(deleted, Formatting.Indented));
+
+        if (File.Exists(UserTemplatesFile))
+        {
+            try
+            {
+                var json = File.ReadAllText(UserTemplatesFile);
+                userTemplates = JsonConvert.DeserializeObject<List<DataTemplate>>(json) ?? new();
+            }
+            catch { }
+        }
+
+        // 更新或添加
+        var existing = userTemplates.FindIndex(t => t.Id == template.Id);
+        if (existing >= 0)
+            userTemplates[existing] = template;
+        else
+            userTemplates.Add(template);
+
+        File.WriteAllText(UserTemplatesFile, JsonConvert.SerializeObject(userTemplates, Formatting.Indented));
+
+        // 刷新内存模板列表
+        if (!Templates.Any(t => t.Id == template.Id))
+            Templates.Add(template);
+        else
+        {
+            var idx = Templates.FindIndex(t => t.Id == template.Id);
+            if (idx >= 0) Templates[idx] = template;
+        }
+    }
+}

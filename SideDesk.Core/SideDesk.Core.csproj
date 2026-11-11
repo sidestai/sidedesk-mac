@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <!-- Windows SideDesk relies on implicit global usings (System, Collections.Generic,
+         Linq, ...); enable here so Models/Framework port verbatim without per-file edits. -->
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Same versions as the Windows SideDesk project (sideui front half). -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- sideui registries + cards: flow to the consuming app's output dir so the
+         renderer can load them from {BaseDirectory}/resources/ui at runtime. -->
+    <None Include="resources\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- i18n dictionaries (ported from Windows langs/): loaded by Framework.Lang
+         from {BaseDirectory}/langs/{code}.json at runtime. -->
+    <None Include="langs\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

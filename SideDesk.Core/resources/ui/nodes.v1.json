@@ -1,0 +1,465 @@
+{
+  "_readme": "UI 节点注册表（ADR-0017）。YAML 里的 type 必须在此；props / bind / events 的键必须在该 type 声明的集合内；根对象的未知键一律 ERROR（不宽容解析 —— 宽容会让拼错静默生效）。v1 **不开放插件自定义节点**：那等于在渲染路径上跑插件代码，与能力最小化冲突；插件的扩展点是宿主节点 PluginHost。",
+  "_rule": "本表的 nodes 集合 **必须与 UiRenderer.RenderableTypes 逐字相等** —— 权威道的漂移锁会断言。注册一个没有渲染实现的节点，就是 ADR-0017 §6 说的『注册表说支持、实现还没有』，planed 列表存在的意义正是避免它。",
+  "schema": "ui/nodes/v1",
+
+  "propKinds": {
+    "_readme": "属性值的类型契约，由 check-ui-yaml.ps1 与渲染器共同遵守。textToken 只接受 @key 或 {path}；glyph 是**唯一允许字面量**的文本槽位（图标不翻译，ADR-0017 §3）；colorToken/sizeToken/radiusToken 只接受 tokens.v1.json 里的语义名；number/bool 是自由字面量（门禁不管间距与尺寸，只管主题耦合的四类）。",
+    "textToken": "只接受 '@domain.key'（走 Lang.T）或 '{path}'（数据绑定）",
+    "glyph": "字面量文本，不翻译、不绑定（图标槽位专用）",
+    "colorToken": "tokens.v1.json 的 brush 语义名",
+    "sizeToken": "tokens.v1.json 的 font 语义名",
+    "radiusToken": "tokens.v1.json 的 radius 语义名",
+    "number": "数值字面量",
+    "bool": "布尔字面量",
+    "choice": "白名单内的枚举字符串（见字段的 values）",
+    "align": "元素在容器里的水平对齐：left / center / right / stretch",
+    "textAlign": "文本在自身框内的对齐：left / center / right / justify（与 align 不是一回事）",
+    "alignV": "垂直对齐：top / center / bottom / stretch",
+    "thickness": "边距/内边距：单个数字（四边相同）或 \"左,上,右,下\"（如 \"0,0,0,8\"）",
+    "any": "任意值（宿主节点专用：类型直通的绑定，如 List<SignalLightItem>）",
+    "columnSpec": "列宽：单个数字表示等宽列数（如 7），或 \"52,auto,*\" 这样的混合宽度（数字=固定像素，auto=自适应内容，*=按比例填满）"
+  },
+
+  "nodes": {
+    "SignalLightBoard": {
+      "summary": "信号灯看板的视觉与状态机（宿主自绘节点）：灯形/亮灭/闪烁/条件求值/双定时器自包含。**每灯的点击与右键菜单不在这里** —— 它们需要宿主对话框与配置保存，由宿主 Wire 到对应元素。items 经绑定拿 List<SignalLightItem> 原对象（条件组是结构化对象，压成标量会丢信息）",
+      "children": false,
+      "props": {
+        "items": "any",
+        "vertical": "bool",
+        "spacing": "number",
+        "align": "align"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "Carousel": {
+      "summary": "轮播图（宿主自绘节点）：显示/翻页/自动播放定时器/空态自包含；目录枚举归数据源（car.files 类型直通 List<string>），点击与菜单由宿主 Wire",
+      "children": false,
+      "props": {
+        "files": "any",
+        "stretch": { "kind": "choice", "values": ["Uniform", "UniformToFill", "Fill"] },
+        "height": "number",
+        "random": "bool",
+        "intervalSeconds": "number",
+        "autoPlay": "bool"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "RatioBar": {
+      "summary": "比例条（track+fill）：value 经绑定 0-100，color 经绑定（语义名或用户色回落）。列表/分类视图的用量条。track 底色走主题 bg.input，圆角走 small",
+      "children": false,
+      "props": {
+        "value": "number",
+        "color": "colorToken",
+        "height": "number"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "PomodoroTimer": {
+      "summary": "Pomodoro dial (P3 sidecar batch, host-drawn node): ring + mm:ss remaining, re-reads the snapshot on each data Changed. Visual constants use text.onDark/brand.pomodoro; snapshot is a typed passthrough binding (PomodoroSnapshot object). Mode/reset menus and settings stay host-side (mixed form).",
+      "children": false,
+      "props": {
+        "snapshot": "any"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "StickyBoard": {
+      "summary": "便签列表（宿主自绘节点）：22px 行 / 编辑模式下 hover 才显形的 ✕ / 可渲染彩色 emoji 的预览文本与超 200 字截断的 tooltip 自包含。**每行的点击与右键菜单不在这里** —— 它们需要编辑器浮窗与配置保存，由宿主按位置 Wire（Rows[i] ↔ notes[i]，同 SignalLightBoard 的位置契约）",
+      "children": false,
+      "props": {
+        "notes": "any",
+        "editMode": "bool"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "DeskNoteBoard": {
+      "summary": "记事列表（宿主自绘节点）：与 StickyBoard 同构，独立数据源。22px 行 / 编辑模式下 hover 才显形的 ✕ / 可渲染彩色 emoji 的预览文本与超 200 字截断的 tooltip 自包含。**每行的点击与右键菜单不在这里** —— 它们需要编辑器浮窗与配置保存，由宿主按位置 Wire（Rows[i] ↔ notes[i]）",
+      "children": false,
+      "props": {
+        "notes": "any",
+        "editMode": "bool"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "TodoBoard": {
+      "summary": "待办列表（宿主自绘节点）：勾选态 / 完成后的删除线与弱化文字色 / 任务时间的闹钟图标与悬停提示 / 末端省略号自包含。**勾选落库、点击详情、右键菜单不在这里** —— 它们需要对话框与配置保存，由宿主按位置 Wire（Rows[i] ↔ items[i]）；复选款样式亦由宿主套用",
+      "children": false,
+      "props": {
+        "items": "any"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "WebView": {
+      "summary": "内嵌网页（宿主自绘节点）：铺满卡片内容区的 WebView2，初始化与释放自包含（重复附加不重复导航；宿主在全量重绘前释放）。url 只接受绑定 —— URL 既不是词典键也不该翻译，文本槽位规则下绑定是唯一合规形态",
+      "children": false,
+      "props": {
+        "url": "textToken"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "ClipboardBoard": {
+      "summary": "剪贴板收藏列表（宿主自绘节点）：24px 行 / 两个 20×20 透明按钮 / 首行 40 字预览与 200 字截断提示自包含，删除钮仅编辑模式悬停可见。**写入剪贴板、粘贴到前台窗口、删除落库、右键菜单与拖拽收藏都不在这里** —— 由宿主按位置 Wire（Rows[i] ↔ items[i]）",
+      "children": false,
+      "props": {
+        "items": "any",
+        "editMode": "bool"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "ClipboardHistoryBoard": {
+      "summary": "剪贴板历史列表（宿主自绘节点）：22px 行 / 内容类型图标（字形与颜色由服务给）/ 悬停显形的复制钮 / 按类型截断的 30 字预览与 200 字提示自包含；含空态提示与**原地 Rebuild**（列表变化频繁，不走整卡重绘）。**复制、从历史删除、右键菜单、拖到收藏卡都不在这里** —— 由宿主按位置 Wire（Rows[i] ↔ items[i]）",
+      "children": false,
+      "props": {
+        "items": "any"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "CheckInBoard": {
+      "summary": "打卡按钮网格（宿主自绘节点，首个网格形制）：按列数铺开的圆角按钮（底色/描边由数据色派生）/ 四种样式 / 当日计数徽标（仅文字样式内联、其余右上角叠加）/ 整卡悬停提示自包含。**打卡、编辑/删除对话框、列数与样式菜单、空态提示都不在这里** —— 由宿主按位置 Wire（Rows[i] ↔ items[i]），点击后原地刷新徽标",
+      "children": false,
+      "props": {
+        "items": "any",
+        "columnCount": "number",
+        "buttonStyle": { "kind": "choice", "values": ["TextOnly", "IconOnly", "IconTextVertical", "IconTextHorizontal"] }
+      },
+      "bindable": {},
+      "events": []
+    },
+    "EmployeeBoard": {
+      "summary": "数字员工网格（宿主自绘节点）：按列数决定卡片宽度与头像尺寸 / 圆形头像（本地图片，表情或首字占位）/ 姓名与职位 / 悬停状态提示（头像、姓名部门、状态点与文字、技能、点击提示）自包含。**悬停拉后端状态、点击打开网页、管理/选择/列数菜单与空态提示都不在这里** —— 由宿主按位置 Wire（Rows[i] ↔ employees[i]）",
+      "children": false,
+      "props": {
+        "items": "any",
+        "columnCount": "number"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "PluginHost": {
+      "summary": "插件宿主（宿主自绘节点）：把插件自己的 UI（松散 XAML / native 控件 / HTML 宿主控件）摆进卡片内容区，并把三条失败分支（未指定 id / 未加载 / 建 UI 失败）画成弱化提示。**刻意不自持释放** —— 插件 UI 的生命周期归加载器（面板移除时卸载）",
+      "children": false,
+      "props": {
+        "pluginId": "textToken"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "FriendBoard": {
+      "summary": "好友列表（宿主自绘节点）：30px 圆形头像 + 右下角在线状态点（色走 status.friend* 常量组）/ 昵称与状态文字自包含；未选好友时给 46px 圆加号占位。**真实头像的异步下载/解码、占位点击（选好友）与列表解析都不在这里** —— 由宿主按位置 Wire（Rows[i].Avatar ↔ items[i]，Placeholder 挂点击）",
+      "children": false,
+      "props": {
+        "items": "any"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "TimerBoard": {
+      "summary": "计时器卡片（宿主自绘节点）：带边框的卡 / 名称 + 编辑字形 + 开始停止圆钮（矢量图标，圆钮自绘模板）/ Viewbox 包裹的时间显示（Consolas，运行态用强调色）/ 今日总计行自包含。**每秒刷新定时器、开关计时的落库与每日活跃回写、行右键菜单与编辑对话框都不在这里** —— 由宿主按位置 Wire（Rows[i] = (Card, TimeDisplay, Toggle, Edit)）",
+      "children": false,
+      "props": {
+        "items": "any",
+        "editMode": "bool"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "CountdownBoard": {
+      "summary": "倒计时卡片（宿主自绘节点）：带边框的卡 / 名称 + 编辑字形 + 启动暂停圆钮（矢量图标，圆钮自绘模板）/ Viewbox 包裹的剩余时间（Consolas，三态语义色：运行 accent、已到期 countdown.finished、其余 text.main）/ 摘要行（总时长与提醒方式）自包含。**每秒 tick、到期判定与提醒（闪烁/弹窗/休眠/关机）、行右键菜单与编辑对话框都不在这里** —— 由宿主按位置 Wire（Rows[i] = (Card, TimeDisplay, Toggle, Edit, Countdown)）",
+      "children": false,
+      "props": {
+        "items": "any",
+        "editMode": "bool"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "FileAreaBoard": {
+      "summary": "文件区卡片（宿主自绘节点）：拖拽区与空态提示 / 列表边框与容器（按布局与列数选 UniformGrid 或 StackPanel）/ 图标布局项（图标 + 名称 + 编辑模式删除钮，目录项带 __folder__ 标记供落点判定）/ 列表布局项（图标名面板 + 悬停显形的删除与打开钮）自包含。**点击打开（两种布局语义不同）、右键菜单、拖拽事件、云文件下载打开、别名与文件系统操作都不在这里** —— 由宿主遍历 Rows 接线（行含 IsIconLayout / DeleteButton / OpenButton / CloudIcon）；**Popup 布局**（触发按钮 + 浮层列表，第十六批迁入）由 TriggerButton / Popup / PopupBorder / PopupStack / PopupRows 暴露，浮层开关与级联在节点内、拖放与菜单归宿主。项图标用 emoji 属既有存量，见 issue 252",
+      "children": false,
+      "props": {
+        "items": "any",
+        "layout": {
+          "kind": "choice",
+          "values": ["List", "LargeIcons", "SmallIcons", "Popup"]
+        },
+        "columnCount": "number",
+        "editMode": "bool",
+        "panelTitle": "textToken"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "PieChart": {
+      "summary": "饼图（宿主自绘节点）：slices 类型直通 List<PieSliceData>（数据源按分类聚合好值与颜色，节点算角度画弧）；<1% 的扇区跳过、整圆退化成 Ellipse、尺寸变化重绘",
+      "children": false,
+      "props": {
+        "slices": "any",
+        "height": "number"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "Stack": {
+      "summary": "线性布局容器",
+      "children": true,
+      "props": {
+        "spacing": "number",
+        "orientation": { "kind": "choice", "values": ["vertical", "horizontal"] },
+        "align": "align",
+        "alignV": "alignV",
+        "margin": "thickness"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "Grid": {
+      "summary": "网格容器。columns 给数字即等宽列数，给 \"52,auto,*\" 即混合列宽",
+      "children": true,
+      "props": {
+        "columns": "columnSpec",
+        "gap": "number",
+        "align": "align",
+        "alignV": "alignV",
+        "margin": "thickness"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "ConfirmBar": {
+      "summary": "内联确认条（宿主自绘）：一句话 + 确认/取消两个按钮，就地嵌在内容里。agent 界面里「要不要执行这条命令」这类问询是高频动作，而模态确认框在卡片的连续交互里太重。它只负责表态：两个按钮各派一个动作名，后续怎么变由数据源驱动",
+      "children": false,
+      "props": { "text": "textToken", "color": "colorToken", "border": "colorToken", "radius": "radiusToken", "margin": "thickness" },
+      "bindable": {},
+      "events": [ "confirm", "cancel" ]
+    },
+    "Image": {
+      "summary": "图片（宿主自绘）：**v1 只接本地文件路径**（{path} 给绝对路径），不接 URL——让卡片去取网络会把宿主变成任意远端的取图器（ADR-0028 出口白名单）。要远程图请让数据源先落盘再给路径。加载失败退化成弱化提示，不静默；decodeWidth 限宽解码防大图吃内存",
+      "children": false,
+      "props": { "file": "textToken", "height": "number", "decodeWidth": "number", "stretch": { "kind": "choice", "values": [ "Uniform", "UniformToFill", "Fill", "None" ] }, "margin": "thickness" },
+      "bindable": {},
+      "events": []
+    },
+    "Tree": {
+      "summary": "层级列表（宿主自绘）：集合每项自带 depth（0=根）与 label，按 depth 缩进渲染，点一行派 select 动作（带该行 label）。**v1 不做折叠**——折叠树要递归集合协议；现在用数据源展开子树 + Collapsible 包 Repeat 也能表达",
+      "children": false,
+      "props": { "margin": "thickness" },
+      "bindable": {},
+      "events": [ "select" ],
+      "requires": { "repeat": [ "source", "as" ] }
+    },
+    "Select": {
+      "summary": "下拉选择（宿主自绘）：选项来源与 Repeat 同款（repeat.source/as），每项按约定字段 label（显示）与 value（取值）来。选中变化派 change 动作并**带值**——宿主不用猜用户选了哪一项。selected 给当前值以便回显",
+      "children": false,
+      "props": { "selected": "textToken", "size": "sizeToken", "margin": "thickness" },
+      "bindable": {},
+      "events": [ "change" ],
+      "requires": { "repeat": [ "source", "as" ] }
+    },
+    "CodeBlock": {
+      "summary": "代码块（宿主自绘）：等宽 + 轻量高亮 + 一键复制。agent 的工具输出大半是代码/补丁/日志，Markdown 里的代码块只有等宽、没着色也没复制入口。language 是 choice 白名单——声明了不支持的取值由校验器先拒",
+      "children": false,
+      "props": { "text": "textToken", "language": { "kind": "choice", "values": ["text", "csharp", "javascript", "typescript", "python", "json", "bash"] } },
+      "bindable": {},
+      "events": []
+    },
+    "AnsiText": {
+      "summary": "ANSI 文本（宿主自绘）：把带 SGR 转义的终端输出渲染成着色文本。16 色**语义归并**到宿主令牌（红→status.danger、绿→status.success、其余→accent）——能看出哪儿红哪儿绿，不是像素级复刻终端主题",
+      "children": false,
+      "props": { "text": "textToken" },
+      "bindable": {},
+      "events": []
+    },
+    "Diff": {
+      "summary": "统一 diff（宿主自绘）：逐行着色——+ 行 status.success、- 行 status.danger、@@ 头 accent、上下文行弱化；+++/--- 是文件头不算增删",
+      "children": false,
+      "props": { "text": "textToken" },
+      "bindable": {},
+      "events": []
+    },
+    "TextBox": {
+      "summary": "文本输入（宿主自绘）：声明式此前的**唯一输入通道缺口**——用户打字终于表达得了。submit（回车）立即把值交给宿主；input（文本变化）**300ms 防抖**（跨进程模块通道经不起逐键往返）。值经元素 Tag 与带值动作两条通道交给宿主（动作名本身不携带参数，ADR-0017 §1）。placeholder 在 v1 落到 ToolTip",
+      "children": false,
+      "props": { "text": "textToken", "placeholder": "textToken", "size": "sizeToken" },
+      "bindable": {},
+      "events": [ "submit", "input" ]
+    },
+    "Markdown": {
+      "summary": "Markdown 富文本（宿主自绘）：复用随包的原生渲染器（标题/列表/引用/表格/代码块/图片/数学）。DSH 那类 agent 界面的助手消息整篇是 Markdown —— 微屏缺的从来不是渲染器，是这个入口",
+      "children": false,
+      "props": { "text": "textToken" },
+      "bindable": {},
+      "events": []
+    },
+    "Collapsible": {
+      "summary": "可折叠容器（宿主自绘）：标题常显、内容默认收起，点标题展开 —— 工具调用过程、长列表分组这类「先给结论、详情按需展开」的区块用它。open 是**构建时**初值（与 if 同口径），之后展开/收起归控件自己管",
+      "children": true,
+      "props": { "label": "textToken", "open": "bool" },
+      "bindable": {},
+      "events": []
+    },
+    "Section": {
+      "summary": "带小标题的分组（如 CPU / 内存 / 网络 三块）。标题的颜色与字号由声明给出 —— 渲染器不替声明决定外观，否则同一份 YAML 在不同卡片上会长得不一样",
+      "children": true,
+      "props": { "label": "textToken", "labelColor": "colorToken", "labelSize": "sizeToken" },
+      "bindable": {},
+      "events": []
+    },
+    "Repeat": {
+      "summary": "按数据源展开子节点。repeat.source 是数据源里的集合路径，repeat.as 是子作用域名（子节点用 {as.field} 引用该字段）。**字段值由数据源算好**（如活跃度该用哪个颜色语义名），YAML 不做运算。columns 给数字则按 N 列铺开（热力图/表头），否则纵向或横向线性排列。squareCells 配合 columns 做方形铺排（月度热力图）：列距始终平分全宽，格子内容是 min(列距, cellCap) 的正方形（cellCap 含子项 margin，0=不限）。virtualize 把容器换成**布局虚拟化**（只实现视口内的项，需同时给 height 有界高度；与 columns/squareCells 互斥）——省的是布局不是构造，元素树仍全部建好",
+      "children": true,
+      "props": {
+        "spacing": "number",
+        "columns": "columnSpec",
+        "squareCells": "bool",
+        "cellCap": "number",
+        "virtualize": "bool",
+        "height": "number",
+        "orientation": { "kind": "choice", "values": ["vertical", "horizontal"] },
+        "align": "align",
+        "margin": "thickness"
+      },
+      "bindable": {},
+      "events": [],
+      "requires": { "repeat": ["source", "as"] }
+    },
+    "Box": {
+      "summary": "带外观的容器（底色/圆角/边框/尺寸/提示）。日历与活跃度的格子、各种卡片块都是它。**子元素可选**（childrenOptional）—— 纯色块/占位格就是没有子元素的 Box",
+      "children": true,
+      "childrenOptional": true,
+      "props": {
+        "width": "number",
+        "height": "number",
+        "radius": "radiusToken",
+        "color": "colorToken",
+        "border": "colorToken",
+        "borderWidth": "number",
+        "align": "align",
+        "alignV": "alignV",
+        "margin": "thickness",
+        "opacity": "number",
+        "tip": "textToken"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "Text": {
+      "summary": "文本。emoji: true 改用 Emoji.Wpf.TextBlock 渲染（彩色 emoji）—— 内容可能含 emoji 的卡片（便签/待办/剪贴板这类用户内容）应置 true，否则 emoji 渲染成单色字形；默认 false 走普通 TextBlock，已验收卡片的渲染路径逐像素不变（issue #238 缺口一）",
+      "children": false,
+      "props": {
+        "text": "textToken",
+        "emoji": "bool",
+        "style": { "kind": "choice", "values": ["hint", "micro"] },
+        "color": "colorToken",
+        "size": "sizeToken",
+        "wrap": "bool",
+        "trim": "bool",
+        "weight": { "kind": "choice", "values": ["normal", "semibold", "bold"] },
+        "align": "align",
+        "alignV": "alignV",
+        "textAlign": "textAlign",
+        "margin": "thickness",
+        "opacity": "number"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "Icon": {
+      "summary": "图标（emoji 或字形）。glyph 是唯一豁免 i18n 的文本槽位 —— 它不翻译",
+      "children": false,
+      "props": {
+        "glyph": "glyph",
+        "size": "sizeToken",
+        "color": "colorToken"
+      },
+      "bindable": {},
+      "events": []
+    },
+    "Meter": {
+      "summary": "数值条（CPU/内存占用这类）。value/max 是绑定，不是字面量",
+      "children": false,
+      "props": { "color": "colorToken", "height": "number" },
+      "bindable": { "value": "number", "max": "number" },
+      "events": []
+    },
+    "MetricCard": {
+      "summary": "指标卡（一行图标+数字+单位，悬停显示明细）。系统监控那张卡的三块就是它",
+      "children": false,
+      "props": {
+        "text": "textToken",
+        "tip": "textToken",
+        "color": "colorToken",
+        "fg": "colorToken",
+        "size": "sizeToken"
+      },
+      "bindable": {},
+      "events": ["click"]
+    },
+    "Button": {
+      "summary": "动作入口。click 只声明动作名，逻辑在 Sidecar/inproc 后端",
+      "children": false,
+      "props": {
+        "label": "textToken",
+        "color": "colorToken",
+        "size": "sizeToken",
+        "enabled": "bool"
+      },
+      "bindable": {},
+      "events": ["click"]
+    },
+    "Toggle": {
+      "summary": "开关",
+      "children": false,
+      "props": { "label": "textToken", "size": "sizeToken" },
+      "bindable": {},
+      "events": ["change"]
+    },
+    "List": {
+      "summary": "纵向列表容器：按 spacing 排列孩子；itemCount 绑到 0 且有 emptyText 时在构建期显示空态文案。",
+      "children": true,
+      "childrenOptional": true,
+      "props": { "spacing": "number", "emptyText": "textToken", "margin": "thickness" },
+      "bindable": { "itemCount": "number" },
+      "events": []
+    },
+    "Badge": {
+      "summary": "小徽标：圆角药丸 + 文本（未读数、状态标记）。",
+      "children": false,
+      "props": { "text": "textToken", "color": "colorToken", "fg": "colorToken", "radius": "radiusToken", "size": "sizeToken", "margin": "thickness" },
+      "bindable": { "text": "textToken" },
+      "events": []
+    },
+    "CalendarGrid": {
+      "summary": "月历网格：7 列日期格。firstDay 为月初的星期偏移（0=周日），days 为逗号分隔的日期，marked 为要高亮的日期，title 为可选标题。",
+      "children": false,
+      "props": { "cellSize": "number", "accent": "colorToken", "muted": "colorToken", "border": "colorToken", "margin": "thickness" },
+      "bindable": { "days": "textToken", "marked": "textToken", "firstDay": "number", "title": "textToken" },
+      "events": []
+    },
+    "FileDrop": {
+      "summary": "文件拖放区：提示文案 + 虚框；声明 drop 事件后才接受拖入，落下的文件路径写进元素的 Tag（动作名按 ADR-0017 §1 不携带参数）。",
+      "children": false,
+      "props": { "hint": "textToken", "height": "number", "color": "colorToken", "border": "colorToken", "radius": "radiusToken", "margin": "thickness" },
+      "bindable": { "hint": "textToken" },
+      "events": ["drop"]
+    }
+  },
+
+  "reserved": {
+    "_readme": "以下节点**尚未实现**（写在这里是为了让评审看到边界）。此刻用作 type 会被门禁拒绝 —— 这是有意的：避免『注册表说支持、实现还没有』。上线一个节点 = 同时改本表与 UiRenderer。",
+    "planned": [],
+    "plannedWhy": {
+      "其余": "随各自的卡片期次加入"
+    }
+  }
+}

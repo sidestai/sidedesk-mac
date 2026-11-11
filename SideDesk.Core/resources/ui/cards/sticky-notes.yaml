@@ -1,0 +1,21 @@
+schema: sideui/v1
+id: sticky-notes
+title: "@nativePanel.stickyNotes"
+category: interactive
+# NOTE: no CJK anywhere in YAML, comments included (gate G1).
+#
+# Stage 4e batch (issue 72): self-drawn host node (ADR-0017 s5), same shape as
+# signal-light / image-carousel / pomodoro. Row visuals -- 22px row, hover-only
+# delete glyph, emoji-capable preview text with 200-char truncated tooltip --
+# live in StickyBoardNode; per-row click (open editor) / delete / context menu
+# stay host-side (they need the editor flyout and config save) and are wired by
+# position: Rows[i] <-> notes[i].
+#
+# notes is a TYPED binding: the source hands over List<StickyNote> as-is, because
+# preview/content truncation and the per-row context menu all need object identity.
+# editMode comes from the host through the source (the node must not read host state).
+body:
+  type: StickyBoard
+  props:
+    notes: "{sn.notes}"
+    editMode: "{sn.editMode}"

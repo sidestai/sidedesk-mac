@@ -1,0 +1,30 @@
+{
+  "name": "Codex",
+  "version": 2,
+  "color": {
+    "background": "#181818",
+    "backgroundOpacity": 0.96,
+    "textPrimary": "#DFDFDF",
+    "textAlert": "#FA423E",
+    "groupBackground": "#212121",
+    "accent": "#339CFF",
+    "accentBookmark": "#99CEFF",
+    "accentAITool": "#AD7BF9",
+    "accentBrowser": "#0285FF",
+    "accentProgram": "#40C977",
+    "accentCounter": "#FF8549",
+    "accentTaskbar": "#FF8549",
+    "separator": "#2EFFFFFF"
+  },
+  "font": {
+    "family": "Segoe UI, Microsoft YaHei UI",
+    "size": 14,
+    "bold": false
+  },
+  "layout": {
+    "cornerRadius": 6,
+    "buttonPadding": 7,
+    "groupSpacing": 4,
+    "itemSpacing": 4
+  }
+}

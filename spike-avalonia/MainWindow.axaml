@@ -1,0 +1,26 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="spike_avalonia.MainWindow"
+        Title="SidestMac Avalonia Spike"
+        Width="100" Height="1000"
+        SystemDecorations="None"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Topmost="False"
+        WindowStartupLocation="Manual"
+        Background="#22FFFFFF">
+    <Border Padding="8" CornerRadius="0">
+        <StackPanel Spacing="12">
+            <TextBlock Text="Ava" FontSize="16" FontWeight="Bold"
+                       Foreground="White" HorizontalAlignment="Center"/>
+            <TextBlock Text="⌥S" FontSize="11" Foreground="#AAFFFFFF"
+                       HorizontalAlignment="Center"/>
+            <Border Height="1" Background="#33FFFFFF"/>
+            <TextBlock Text="bar" Foreground="#88FFFFFF"
+                       HorizontalAlignment="Center"/>
+        </StackPanel>
+    </Border>
+</Window>

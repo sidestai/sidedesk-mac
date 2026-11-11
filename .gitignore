@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Swift / SwiftPM
+.build/
+.swiftpm/
+*.xcodeproj/
+xcuserdata/
+DerivedData/
+
+# Release artifacts (build.sh / make-release.sh 输出)
+dist/
+
+# .NET (C# 参考实现 + spike 实验)
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+# 签名 / 公证材料（私钥永不入库；公钥 .sparkle-public-key 例外，需跟踪）
+*.keychain
+*.keychain-db
+*.p8
+*.p12
+.sparkle-private-key*
+.notarize-tmp.zip

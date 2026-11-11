@@ -1,0 +1,56 @@
+{
+  "_readme": "样式聚合注册表（ADR-0022）：默认值与语义样式类的**唯一事实源** —— 渲染器（UiRegistries 消费方）与门禁（check-ui-yaml 两道）读同一份。 vocabulary 冻结纪律见 ADR-0022 §2/§3：defaults 只收\"渲染器本该有默认而没默认\"的槽位（Button/Toggle 的隐式样式口子刻意不进表）；styles 新增需实测配对 >= 3 次；本文件由 check-ui-yaml 全量扫描（无 CJK、token 引用必须存在）。",
+  "schema": "ui/presets/v1",
+  "defaults": {
+    "Text.size": "body",
+    "Text.color": "text.main",
+    "MetricCard.fg": "text.main",
+    "MetricCard.size": "smallPlus"
+  },
+  "styles": {
+    "hint": {
+      "color": "text.muted",
+      "size": "smallPlus"
+    },
+    "micro": {
+      "color": "text.muted",
+      "size": "tiny"
+    }
+  },
+  "presets": {
+    "listRow": {
+      "summary": "Label + value row (P3 style aggregation, ADR-0022 s3): Grid(*,auto) two-text row, both center-aligned. Params feed the skeleton via whole-value placeholders; an omitted optional param drops that prop (falls back to node defaults). Admission rule (ADR-0022 s3, revised 2026-09-30): the FIRST preset only needs a motive + >= 1 real card measured (screen-time-list: 12 in-row props -> 4); from the 2nd preset on, cross-card reuse by >= 2 real cards.",
+      "params": {
+        "label": "textToken",
+        "value": "textToken",
+        "valueColor": "colorToken"
+      },
+      "expand": {
+        "type": "Grid",
+        "props": {
+          "columns": "*,auto"
+        },
+        "children": [
+          {
+            "type": "Text",
+            "props": {
+              "text": "{label}",
+              "size": "smallPlus",
+              "trim": true,
+              "alignV": "center"
+            }
+          },
+          {
+            "type": "Text",
+            "props": {
+              "text": "{value}",
+              "color": "{valueColor}",
+              "size": "small",
+              "alignV": "center"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

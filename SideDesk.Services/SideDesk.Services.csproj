@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <!-- Windows SideDesk services rely on implicit global usings; keep parity so they
+         port verbatim. -->
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SideDesk.Core\SideDesk.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Persistence (SQLite) + JSON. Versions aligned to net9.0 (Windows used 10.0.x on net10). -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+  </ItemGroup>
+</Project>

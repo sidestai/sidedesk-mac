@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>SidestMac</string>
+    <key>CFBundleDisplayName</key>
+    <string>SidestMac</string>
+    <key>CFBundleIdentifier</key>
+    <string>ai.sidest.sidedesk</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleExecutable</key>
+    <string>SidestMac</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>SidestMac 需要访问麦克风，以便把语音转写成文字并注入到当前应用。</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>SidestMac 使用系统语音识别把您说的话转成文字。</string>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright © 2026 SidestMac</string>
+
+    <!-- Sparkle 自动更新（对应 C# 的 Velopack：更新源 + 静默检查/下载）-->
+    <!-- 更新源：build.sh 里可用环境变量 SPARKLE_FEED_URL 覆盖（本地自测 appcast 用） -->
+    <key>SUFeedURL</key>
+    <string>https://cdn.bigjing.com/updates/sidestmac/appcast.xml</string>
+    <!-- 允许 Sparkle 自己排定的定时检查（关掉会让 SUAutomaticallyUpdate 失效）-->
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
+    <!-- 静默下载 + 退出时安装，不再问用户——对应 C# `EnableAutoUpdate` 打开时的行为 -->
+    <key>SUAutomaticallyUpdate</key>
+    <true/>
+    <!-- 检查间隔保持 Sparkle 默认的 1 天；C# 侧是「每次启动都查」，由 UpdateService.start() 补 -->
+    <key>SUScheduledCheckInterval</key>
+    <integer>86400</integer>
+    <!-- SUPublicEDKey 不入库：由 build.sh 从 .sparkle-public-key 注入（私钥只在签名机上） -->
+
+</dict>
+</plist>

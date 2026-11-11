@@ -1,0 +1,429 @@
+using System;
+using System.IO;
+using System.ComponentModel;
+using Newtonsoft.Json;
+
+namespace SideDesk.Framework
+{
+    [JsonObject(MemberSerialization.OptIn)]
+    public sealed class AppSettings : INotifyPropertyChanged
+    {
+        private static readonly string LocalAppFolder = AppPaths.DataDir;
+
+        private static readonly string SettingsFilePath = Path.Combine(LocalAppFolder, "settings.json");
+
+        private AppSettings() { }
+
+        public void Save()
+        {
+            if (!Directory.Exists(LocalAppFolder))
+            {
+                Directory.CreateDirectory(LocalAppFolder);
+            }
+
+            using (StreamWriter writer = File.CreateText(SettingsFilePath))
+            {
+                new JsonSerializer() { Formatting = Formatting.Indented }.Serialize(writer, this);
+            }
+        }
+
+        public void Reload()
+        {
+            _instance = Load();
+        }
+
+        private static AppSettings Load()
+        {
+            AppSettings? result = null;
+
+            if (File.Exists(SettingsFilePath))
+            {
+                using (StreamReader reader = File.OpenText(SettingsFilePath))
+                {
+                    result = (AppSettings?)new JsonSerializer().Deserialize(reader, typeof(AppSettings));
+                }
+            }
+
+            return result ?? new AppSettings();
+        }
+
+        public void NotifyPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;   // 与接口一致的可空声明；无订阅者时 Invoke 为 no-op
+
+        // ========== 通用设置 ==========
+
+        private bool _runAtStartup { get; set; } = true;
+
+        [JsonProperty]
+        public bool RunAtStartup
+        {
+            get { return _runAtStartup; }
+            set { _runAtStartup = value; NotifyPropertyChanged("RunAtStartup"); }
+        }
+
+        private bool _showInTaskbar { get; set; } = true;
+
+        [JsonProperty]
+        public bool ShowInTaskbar
+        {
+            get { return _showInTaskbar; }
+            set { _showInTaskbar = value; NotifyPropertyChanged("ShowInTaskbar"); }
+        }
+
+        // 任务栏标题锁定看门狗刷新间隔（毫秒）。默认 5000ms。
+        private int _titleLockWatchdogInterval { get; set; } = 5000;
+
+        [JsonProperty]
+        public int TitleLockWatchdogInterval
+        {
+            get { return _titleLockWatchdogInterval; }
+            set
+            {
+                if (value < 500) value = 500;
+                if (value > 60000) value = 60000;
+                _titleLockWatchdogInterval = value;
+                NotifyPropertyChanged("TitleLockWatchdogInterval");
+            }
+        }
+
+        // 任务栏标题锁定重扫全部窗口间隔（毫秒）。默认 15000ms。
+        private int _titleLockRescanInterval { get; set; } = 15000;
+
+        [JsonProperty]
+        public int TitleLockRescanInterval
+        {
+            get { return _titleLockRescanInterval; }
+            set
+            {
+                if (value < 2000) value = 2000;
+                if (value > 600000) value = 600000;
+                _titleLockRescanInterval = value;
+                NotifyPropertyChanged("TitleLockRescanInterval");
+            }
+        }
+
+        #region 显示设置
+
+        // 默认关闭：仅在用户显式开启「使用时长分析」后，WindowLogger 才采集窗口日志（windowlog_*.txt）
+        private bool _showUsageStats { get; set; } = false;
+        [JsonProperty]
+        public bool ShowUsageStats
+        {
+            get { return _showUsageStats; }
+            set { _showUsageStats = value; NotifyPropertyChanged("ShowUsageStats"); }
+        }
+
+        private bool _hideModuleFrame { get; set; } = false;
+
+        [JsonProperty]
+        public bool HideModuleFrame
+        {
+            get { return _hideModuleFrame; }
+            set { _hideModuleFrame = value; NotifyPropertyChanged("HideModuleFrame"); }
+        }
+
+        private bool _hideModuleTitle { get; set; } = false;
+
+        /// <summary>隐藏卡片外框时，是否同时隐藏卡片标题栏</summary>
+        [JsonProperty]
+        public bool HideModuleTitle
+        {
+            get { return _hideModuleTitle; }
+            set { _hideModuleTitle = value; NotifyPropertyChanged("HideModuleTitle"); }
+        }
+
+        #endregion
+
+        #region 主题/外观属性
+
+        private double _cardFontSize = 12;
+
+        /// <summary>卡片内字体大小（px，默认 12，限定 9-24）；卡片标题经 FS(13) 自动比其大 1 号</summary>
+        [JsonProperty]
+        public double CardFontSize
+        {
+            get { return _cardFontSize; }
+            set { _cardFontSize = Math.Clamp(value, 9, 24); NotifyPropertyChanged("CardFontSize"); }
+        }
+
+        /// <summary>卡片字号换算：以 12 为设计基准，偏移量随 CardFontSize 同步缩放（默认值时既有 UI 视觉不变）</summary>
+        public double FS(double designSize) => CardFontSize + (designSize - 12);
+
+        private string _bgColor { get; set; } = "#000000";
+
+        [JsonProperty]
+        public string BGColor
+        {
+            get { return _bgColor; }
+            set { _bgColor = value; NotifyPropertyChanged("BGColor"); }
+        }
+
+        private FontSetting _fontSetting { get; set; } = FontSetting.x14;
+
+        [JsonProperty]
+        public FontSetting FontSetting
+        {
+            get { return _fontSetting; }
+            set { _fontSetting = value; NotifyPropertyChanged("FontSetting"); }
+        }
+
+        private string _fontColor { get; set; } = "#FFFFFF";
+
+        [JsonProperty]
+        public string FontColor
+        {
+            get { return _fontColor; }
+            set { _fontColor = value; NotifyPropertyChanged("FontColor"); }
+        }
+
+        private string _groupBGColor { get; set; } = "#333333";
+
+        [JsonProperty]
+        public string GroupBGColor
+        {
+            get { return _groupBGColor; }
+            set { _groupBGColor = value; NotifyPropertyChanged("GroupBGColor"); }
+        }
+
+        private string _accentColor { get; set; } = "#7C3AED";
+
+        [JsonProperty]
+        public string AccentColor
+        {
+            get { return _accentColor; }
+            set { _accentColor = value; NotifyPropertyChanged("AccentColor"); }
+        }
+
+        private string _accentBookmark { get; set; } = "#2ECC71";
+
+        [JsonProperty]
+        public string AccentBookmark
+        {
+            get { return _accentBookmark; }
+            set { _accentBookmark = value; NotifyPropertyChanged("AccentBookmark"); }
+        }
+
+        private string _accentAITool { get; set; } = "#7C3AED";
+
+        [JsonProperty]
+        public string AccentAITool
+        {
+            get { return _accentAITool; }
+            set { _accentAITool = value; NotifyPropertyChanged("AccentAITool"); }
+        }
+
+        private string _accentBrowser { get; set; } = "#4A90D9";
+
+        [JsonProperty]
+        public string AccentBrowser
+        {
+            get { return _accentBrowser; }
+            set { _accentBrowser = value; NotifyPropertyChanged("AccentBrowser"); }
+        }
+
+        private string _accentProgram { get; set; } = "#9B59B6";
+
+        [JsonProperty]
+        public string AccentProgram
+        {
+            get { return _accentProgram; }
+            set { _accentProgram = value; NotifyPropertyChanged("AccentProgram"); }
+        }
+
+        private string _accentCounter { get; set; } = "#E74C3C";
+
+        [JsonProperty]
+        public string AccentCounter
+        {
+            get { return _accentCounter; }
+            set { _accentCounter = value; NotifyPropertyChanged("AccentCounter"); }
+        }
+
+        private string _accentTaskbar { get; set; } = "#FF8C00";
+
+        [JsonProperty]
+        public string AccentTaskbar
+        {
+            get { return _accentTaskbar; }
+            set { _accentTaskbar = value; NotifyPropertyChanged("AccentTaskbar"); }
+        }
+
+        private string _shareBorderColor { get; set; } = "#A855F7";
+
+        /// <summary>分享导入卡片的边框颜色（默认紫色）</summary>
+        [JsonProperty]
+        public string ShareBorderColor
+        {
+            get { return _shareBorderColor; }
+            set { _shareBorderColor = value; NotifyPropertyChanged("ShareBorderColor"); }
+        }
+
+        private string _teamBorderColor { get; set; } = "#3B82F6";
+
+        /// <summary>团队归属卡片的边框颜色（默认蓝色）</summary>
+        [JsonProperty]
+        public string TeamBorderColor
+        {
+            get { return _teamBorderColor; }
+            set { _teamBorderColor = value; NotifyPropertyChanged("TeamBorderColor"); }
+        }
+
+        private string _fontFamily { get; set; } = "Microsoft YaHei UI";
+
+        [JsonProperty]
+        public string FontFamily
+        {
+            get { return _fontFamily; }
+            set { _fontFamily = value; NotifyPropertyChanged("FontFamily"); }
+        }
+
+        private int _themeCornerRadius { get; set; } = 8;
+
+        [JsonProperty]
+        public int ThemeCornerRadius
+        {
+            get { return _themeCornerRadius; }
+            set { _themeCornerRadius = value; NotifyPropertyChanged("ThemeCornerRadius"); }
+        }
+
+        private int _themeButtonPadding { get; set; } = 8;
+
+        [JsonProperty]
+        public int ThemeButtonPadding
+        {
+            get { return _themeButtonPadding; }
+            set { _themeButtonPadding = value; NotifyPropertyChanged("ThemeButtonPadding"); }
+        }
+
+        private string _currentTheme { get; set; } = "";
+
+        [JsonProperty]
+        public string CurrentTheme
+        {
+            get { return _currentTheme; }
+            set { _currentTheme = value; NotifyPropertyChanged("CurrentTheme"); }
+        }
+
+        #endregion
+
+        #region 日期设置
+
+        #endregion
+
+        #region 浮动上下文窗口
+
+        // 默认关闭，需用户在设置中主动开启才显示 AI推荐 浮动窗（已保存过设置的老用户保留其持久化值）
+        private bool _floatingContextEnabled { get; set; } = false;
+
+        /// <summary>浮动上下文窗口开关（输入框焦点/剪贴板复制时在主窗口内显示内容）</summary>
+        [JsonProperty]
+        public bool FloatingContextEnabled
+        {
+            get { return _floatingContextEnabled; }
+            set { _floatingContextEnabled = value; NotifyPropertyChanged("FloatingContextEnabled"); }
+        }
+
+        private double _floatingContextOffset { get; set; } = 0.15;
+
+        /// <summary>浮动上下文窗口的垂直相对位置（0~1，相对主窗口内容区高度）</summary>
+        [JsonProperty]
+        public double FloatingContextOffset
+        {
+            get { return _floatingContextOffset; }
+            set { _floatingContextOffset = value; NotifyPropertyChanged("FloatingContextOffset"); }
+        }
+
+        private bool _floatingContextCompact { get; set; } = false;
+
+        /// <summary>浮动上下文窗口是否处于 2 行精简模式</summary>
+        [JsonProperty]
+        public bool FloatingContextCompact
+        {
+            get { return _floatingContextCompact; }
+            set { _floatingContextCompact = value; NotifyPropertyChanged("FloatingContextCompact"); }
+        }
+
+        #endregion
+
+        // ========== 单例 ==========
+
+        private static AppSettings? _instance { get; set; }
+
+        public static AppSettings Instance
+        {
+            get
+            {
+                if (_instance == null)
+                {
+                    _instance = Load();
+                }
+                return _instance;
+            }
+        }
+    }
+
+    public enum TextAlign : byte
+    {
+        Left,
+        Right
+    }
+
+    [JsonObject(MemberSerialization.OptIn)]
+    public sealed class FontSetting
+    {
+        internal FontSetting() { }
+
+        private FontSetting(int fontSize)
+        {
+            FontSize = fontSize;
+        }
+
+        public override bool Equals(object? obj)
+        {
+            FontSetting? that = obj as FontSetting;
+            if (that == null) return false;
+            return this.FontSize == that.FontSize;
+        }
+
+        public override int GetHashCode()
+        {
+            return FontSize.GetHashCode();
+        }
+
+        public static FontSetting x10 => new FontSetting(10);
+        public static FontSetting x12 => new FontSetting(12);
+        public static FontSetting x14 => new FontSetting(14);
+        public static FontSetting x16 => new FontSetting(16);
+        public static FontSetting x18 => new FontSetting(18);
+
+        [JsonProperty]
+        public int FontSize { get; set; }
+
+        public int TitleFontSize => FontSize + 2;
+        public int SmallFontSize => FontSize - 2;
+
+        public int IconSize
+        {
+            get
+            {
+                switch (FontSize)
+                {
+                    case 10: return 18;
+                    case 12: return 22;
+                    case 14: default: return 24;
+                    case 16: return 28;
+                    case 18: return 32;
+                }
+            }
+        }
+
+        public int BarHeight => FontSize - 3;
+        public int BarWidth => BarHeight * 6;
+        public int BarWidthWide => BarHeight * 8;
+    }
+
+}

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- 应用未沙盒化（对应 C# 侧的普通桌面程序），故这里只列 hardened runtime 的例外项。 -->
+
+    <!-- Sparkle 自动更新：主程序要加载并让位于内嵌的 Sparkle.framework / Autoupdate / XPC 服务。
+         hardened runtime 默认开启 library validation，要求被加载的代码与主程序同 Team ID；
+         当前签名用的是自签证书（SidestMac Dev，无 Team ID），不放宽就会在起更新器时代码崩溃。
+         换成 Developer ID 证书后这一项可以去掉（同一 Team ID 天然通过校验），
+         届时公证流程也不再需要它。 -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>
