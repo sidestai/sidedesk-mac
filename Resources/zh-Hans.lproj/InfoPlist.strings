@@ -1,0 +1,3 @@
+/* Bundle display name (Finder / menu bar / Dock / system About). Simplified Chinese. */
+CFBundleDisplayName = "微屏";
+CFBundleName = "微屏";

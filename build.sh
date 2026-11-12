@@ -54,6 +54,14 @@ cp "$BUILD_DIR/$APP_NAME" "$APP_DIR/Contents/MacOS/$APP_NAME"
 cp "Resources/Info.plist" "$APP_DIR/Contents/Info.plist"
 cp "Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
 
+# Localized bundle display name (Finder / menu bar / Dock): en → "Sidest Bar",
+# zh-Hans → "微屏". Info.plist 里的 CFBundleDisplayName 是兜底，系统语言命中
+# .lproj/InfoPlist.strings 时用本地化名。
+for lproj in Resources/*.lproj; do
+    [ -e "$lproj" ] || continue
+    cp -R "$lproj" "$APP_DIR/Contents/Resources/"
+done
+
 # SPM resource bundles (langs / themes / data-templates). Bundle.module looks
 # here first and otherwise falls back to the absolute .build path baked in at
 # compile time, which breaks the moment .build is cleaned or the app is moved.

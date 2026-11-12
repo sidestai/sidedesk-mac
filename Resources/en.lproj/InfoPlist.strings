@@ -1,0 +1,3 @@
+/* Bundle display name (Finder / menu bar / Dock / system About). English. */
+CFBundleDisplayName = "Sidest Bar";
+CFBundleName = "Sidest Bar";
