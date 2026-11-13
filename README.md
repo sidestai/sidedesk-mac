@@ -2,8 +2,9 @@
 
 macOS-native port of **SideDesk** — a desktop sidebar utility that lives on the edge of your screen and keeps sticky notes, todos, quick launches, check-ins and data dashboards one glance away.
 
-The Windows original is WPF/.NET; this repo is a full rewrite in Swift (AppKit shell + SwiftUI content, built with SwiftPM). The executable and SwiftPM target are still `SidestMac`; **Sidest Bar** / **微屏** is the user-visible product name.
+The Windows original is WPF/.NET; this repo is a full rewrite in Swift (AppKit shell + SwiftUI content, built with SwiftPM). The executable and SwiftPM target are still `SidestMac`; **Sidest Bar** is the user-visible product name.
 
+To get Windows version please visit: https://github.com/sidestai/sidedesk-win
 ## Features
 
 - **Persistent side panel** — borderless non-activating `NSPanel`s pinned to the left and right screen edges at `.statusBar` level; hides off-screen and expands on hover. No Dock icon (menu-bar `NSStatusItem` only).
